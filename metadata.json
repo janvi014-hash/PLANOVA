@@ -1,0 +1,9 @@
+
+{
+  "name": "Planova",
+  "description": "A high-performance, AI-driven productivity app that manages tasks, suggests learning content, and summarizes your daily progress. Learn. Plan. Grow.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
