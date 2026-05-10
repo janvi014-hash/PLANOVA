@@ -34,6 +34,7 @@ export interface Task {
   dueDate: string;
   subTasks: SubTask[];
   createdAt: number;
+  sticker?: string;
 }
 
 export interface JournalEntry {
@@ -46,13 +47,19 @@ export interface JournalEntry {
   aiSummary?: string;
 }
 
+export type ThemeColor = 
+  | 'indigo' | 'emerald' | 'rose' | 'amber' | 'violet' 
+  | 'cyan' | 'teal' | 'orange' | 'fuchsia' | 'sky' 
+  | 'slate' | 'lime' | 'lavender' | 'matcha' | 'peach' | 'pastelPink';
+
 export interface UserProfile {
   name: string;
   email: string;
   isPro: boolean;
   streak: number;
   joinedDate: string;
-  themeColor: 'indigo' | 'emerald' | 'rose' | 'amber' | 'violet' | 'cyan' | 'teal' | 'orange' | 'fuchsia' | 'sky' | 'slate' | 'lime';
+  themeColor: ThemeColor;
+  modePreference?: 'light' | 'dark' | 'system';
 }
 
 export type View = 'dashboard' | 'tasks' | 'journal' | 'suggestions' | 'analytics' | 'settings' | 'calendar';

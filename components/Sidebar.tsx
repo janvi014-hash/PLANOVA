@@ -70,6 +70,10 @@ const Sidebar: React.FC<SidebarProps> = ({
       case 'sky': return 'bg-sky-600 shadow-sky-100';
       case 'slate': return 'bg-slate-700 shadow-slate-100';
       case 'lime': return 'bg-lime-600 shadow-lime-100';
+      case 'lavender': return 'bg-[#c4b5fd] shadow-indigo-100';
+      case 'matcha': return 'bg-[#a3e635] shadow-lime-100';
+      case 'peach': return 'bg-[#fdba74] shadow-orange-100';
+      case 'pastelPink': return 'bg-[#fbcfe8] shadow-pink-100';
       default: return 'bg-indigo-600 shadow-indigo-100';
     }
   };
@@ -87,6 +91,10 @@ const Sidebar: React.FC<SidebarProps> = ({
       case 'sky': return 'from-sky-600 to-cyan-600';
       case 'slate': return 'from-slate-700 to-slate-500';
       case 'lime': return 'from-lime-600 to-green-600';
+      case 'lavender': return 'from-[#c4b5fd] to-[#a78bfa]';
+      case 'matcha': return 'from-[#a3e635] to-[#84cc16]';
+      case 'peach': return 'from-[#fdba74] to-[#f97316]';
+      case 'pastelPink': return 'from-[#fbcfe8] to-[#f472b6]';
       default: return 'from-indigo-600 to-violet-600';
     }
   };

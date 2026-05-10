@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { Task, TaskStatus, Priority, Category, SubTask, UserProfile } from '../types';
 import { geminiService } from '../geminiService';
 import { motion, AnimatePresence } from 'framer-motion';
+import StickerPicker from './StickerPicker';
+import { ToastType } from './Toast';
 
 // Fix: Added user prop to interface to match App.tsx usage
 interface TaskManagerProps {
@@ -11,10 +13,11 @@ interface TaskManagerProps {
   onAdd: (task: Task) => void;
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
+  onNotify?: (message: string, type: ToastType) => void;
 }
 
 // Fix: Destructured user from props
-const TaskManager: React.FC<TaskManagerProps> = ({ tasks, user, onAdd, onUpdate, onDelete }) => {
+const TaskManager: React.FC<TaskManagerProps> = ({ tasks, user, onAdd, onUpdate, onDelete, onNotify }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isBreakingDown, setIsBreakingDown] = useState<string | null>(null);
   const [filter, setFilter] = useState<Category | 'All'>('All');
@@ -23,6 +26,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, user, onAdd, onUpdate,
   const [newPriority, setNewPriority] = useState<Priority>(Priority.MEDIUM);
   const [newDueDate, setNewDueDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [isGeneratingSchedule, setIsGeneratingSchedule] = useState<string | null>(null);
+  const [stickerPickerTask, setStickerPickerTask] = useState<string | null>(null);
 
   const handleAddTask = () => {
     if (!newTitle.trim()) return;
@@ -38,9 +42,14 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, user, onAdd, onUpdate,
       createdAt: Date.now()
     };
     onAdd(task);
+    
+    // Auto-generate AI subtasks upon creation
+    handleBreakdown(task.id, task.title, []);
+
     setNewTitle('');
     setNewDueDate(new Date().toISOString().split('T')[0]);
     setIsAdding(false);
+    onNotify?.("Project launched successfully!", "success");
   };
 
   const handleGenerateSchedule = async (taskId: string, title: string, dueDateStr: string) => {
@@ -65,16 +74,16 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, user, onAdd, onUpdate,
         };
         onAdd(task);
       });
-      alert(`Generated ${newTasks.length} daily tasks for your calendar!`);
+      onNotify?.(`Generated ${newTasks.length} daily tasks for your calendar!`, "success");
     } catch (e) {
       console.error(e);
-      alert(`Failed to generate schedule: ${e instanceof Error ? e.message : String(e)}`);
+      onNotify?.(`Failed to generate schedule: ${e instanceof Error ? e.message : String(e)}`, "error");
     } finally {
       setIsGeneratingSchedule(null);
     }
   };
 
-  const handleBreakdown = async (taskId: string, title: string) => {
+  const handleBreakdown = async (taskId: string, title: string, existingSubtasks: SubTask[] = []) => {
     setIsBreakingDown(taskId);
     try {
       const subTasks = await geminiService.breakdownTask(title);
@@ -83,8 +92,14 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, user, onAdd, onUpdate,
         title: t,
         completed: false
       }));
-      onUpdate(taskId, { subTasks: subTaskObjects });
-    } catch (e) { console.error(e); } finally { setIsBreakingDown(null); }
+      onUpdate(taskId, { subTasks: [...existingSubtasks, ...subTaskObjects] });
+      onNotify?.("AI subtasks generated successfully!", "success");
+    } catch (e) { 
+      console.error(e); 
+      onNotify?.("Failed to generate AI subtasks.", "error");
+    } finally { 
+      setIsBreakingDown(null); 
+    }
   };
 
   const filteredTasks = tasks.filter(t => filter === 'All' || t.category === filter);
@@ -135,14 +150,28 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, user, onAdd, onUpdate,
             >
               <div>
                 <div className="flex justify-between items-center mb-6">
-                  <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${task.priority === 'High' ? 'bg-rose-600 text-white' :
-                    task.priority === 'Medium' ? 'bg-amber-500 text-white' : 'bg-blue-500 text-white'
-                    }`}>
-                    {task.priority}
+                  <div className="flex items-center gap-2">
+                    <div className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${task.priority === 'High' ? 'bg-rose-600 text-white' :
+                      task.priority === 'Medium' ? 'bg-amber-500 text-white' : 'bg-blue-500 text-white'
+                      }`}>
+                      {task.priority}
+                    </div>
+                    {task.sticker && (
+                      <span className="text-xl" title="Sticker">{task.sticker}</span>
+                    )}
                   </div>
-                  <button onClick={() => onDelete(task.id)} className="text-slate-300 dark:text-slate-600 hover:text-rose-500 transition-colors p-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button 
+                      onClick={() => setStickerPickerTask(task.id)}
+                      className="text-slate-300 dark:text-slate-600 hover:text-amber-500 transition-colors p-2"
+                      title="Add Sticker"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </button>
+                    <button onClick={() => onDelete(task.id)} className="text-slate-300 dark:text-slate-600 hover:text-rose-500 transition-colors p-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  </div>
                 </div>
 
                 <h3 className={`text-2xl font-black mb-2 tracking-tight leading-tight transition-colors ${task.status === TaskStatus.COMPLETED ? 'line-through text-slate-300 dark:text-slate-700' : 'text-slate-900 dark:text-slate-100'}`}>
@@ -177,24 +206,22 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, user, onAdd, onUpdate,
               </div>
 
               <div className="space-y-3 mt-auto">
-                {!task.subTasks.length && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      disabled={isBreakingDown === task.id}
-                      onClick={() => handleBreakdown(task.id, task.title)}
-                      className="py-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-black hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all flex items-center justify-center gap-2"
-                    >
-                      {isBreakingDown === task.id ? 'Thinking...' : '✨ Subtasks'}
-                    </button>
-                    <button
-                      disabled={isGeneratingSchedule === task.id}
-                      onClick={() => handleGenerateSchedule(task.id, task.title, task.dueDate)}
-                      className="py-4 rounded-2xl bg-fuchsia-50 dark:bg-fuchsia-900/30 text-fuchsia-600 dark:text-fuchsia-400 text-xs font-black hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/50 transition-all flex items-center justify-center gap-2"
-                    >
-                      {isGeneratingSchedule === task.id ? 'Planning...' : '📅 Plan Workflow'}
-                    </button>
-                  </div>
-                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    disabled={isBreakingDown === task.id}
+                    onClick={() => handleBreakdown(task.id, task.title, task.subTasks)}
+                    className="py-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-black hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isBreakingDown === task.id ? 'Thinking...' : '✨ Subtasks'}
+                  </button>
+                  <button
+                    disabled={isGeneratingSchedule === task.id}
+                    onClick={() => handleGenerateSchedule(task.id, task.title, task.dueDate)}
+                    className="py-4 rounded-2xl bg-fuchsia-50 dark:bg-fuchsia-900/30 text-fuchsia-600 dark:text-fuchsia-400 text-xs font-black hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/50 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isGeneratingSchedule === task.id ? 'Planning...' : '📅 Plan Workflow'}
+                  </button>
+                </div>
                 <button
                   onClick={() => onUpdate(task.id, { status: task.status === TaskStatus.COMPLETED ? TaskStatus.PENDING : TaskStatus.COMPLETED })}
                   className={`w-full py-4 rounded-[1.5rem] text-sm font-black transition-all ${task.status === TaskStatus.COMPLETED
@@ -270,6 +297,21 @@ const TaskManager: React.FC<TaskManagerProps> = ({ tasks, user, onAdd, onUpdate,
           </motion.div >
         </div >
       )}
+
+      <StickerPicker 
+        isOpen={!!stickerPickerTask}
+        onClose={() => setStickerPickerTask(null)}
+        isPro={user.isPro}
+        onUpgradePrompt={() => {
+          onNotify?.("Upgrade to Pro to use stickers!", "info");
+          setStickerPickerTask(null);
+        }}
+        onSelect={(sticker) => {
+          if (stickerPickerTask) {
+            onUpdate(stickerPickerTask, { sticker });
+          }
+        }}
+      />
     </div >
   );
 };

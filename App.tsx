@@ -10,6 +10,7 @@ import Analytics from './components/Analytics';
 import Settings from './components/Settings';
 import Calendar from './components/Calendar';
 import { geminiService } from './geminiService';
+import Toast, { ToastMessage, ToastType } from './components/Toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const STORAGE_KEY = 'planova_app_data_v1';
@@ -34,6 +35,19 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [dailyQuote, setDailyQuote] = useState<string>('');
   const [loadingQuote, setLoadingQuote] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addNotification = (message: string, type: ToastType = 'info') => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  const removeNotification = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -52,12 +66,18 @@ const App: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem(THEME_KEY, JSON.stringify(darkMode));
-    if (darkMode) {
+    
+    // Support system preference if modePreference is 'system'
+    const isDark = user.modePreference === 'dark' || 
+                   (user.modePreference === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ||
+                   (!user.modePreference && darkMode);
+
+    if (isDark) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [darkMode]);
+  }, [darkMode, user.modePreference]);
 
   const fetchQuote = async () => {
     setLoadingQuote(true);
@@ -71,12 +91,12 @@ const App: React.FC = () => {
     }
   };
 
-  const addTask = (task: Task) => setTasks([...tasks, task]);
+  const addTask = (task: Task) => setTasks(prev => [...prev, task]);
   const updateTask = (id: string, updates: Partial<Task>) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, ...updates } : t));
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
-  const deleteTask = (id: string) => setTasks(tasks.filter(t => t.id !== id));
-  const addJournalEntry = (entry: JournalEntry) => setJournalEntries([entry, ...journalEntries]);
+  const deleteTask = (id: string) => setTasks(prev => prev.filter(t => t.id !== id));
+  const addJournalEntry = (entry: JournalEntry) => setJournalEntries(prev => [entry, ...prev]);
 
   const toggleView = (view: View) => {
     setCurrentView(view);
@@ -86,12 +106,12 @@ const App: React.FC = () => {
   const renderView = () => {
     switch (currentView) {
       case 'dashboard': return <Dashboard tasks={tasks} user={user} quote={dailyQuote} loadingQuote={loadingQuote} onTaskUpdate={updateTask} />;
-      case 'tasks': return <TaskManager tasks={tasks} user={user} onAdd={addTask} onUpdate={updateTask} onDelete={deleteTask} />;
+      case 'tasks': return <TaskManager tasks={tasks} user={user} onAdd={addTask} onUpdate={updateTask} onDelete={deleteTask} onNotify={addNotification} />;
       case 'calendar': return <Calendar tasks={tasks} user={user} onAddTask={addTask} />;
       case 'journal': return <Journal entries={journalEntries} user={user} onAdd={addJournalEntry} />;
       case 'suggestions': return <VideoSuggestions tasks={tasks} user={user} />;
       case 'analytics': return <Analytics tasks={tasks} journal={journalEntries} user={user} />;
-      case 'settings': return <Settings user={user} onUpdateUser={setUser} />;
+      case 'settings': return <Settings user={user} onUpdateUser={setUser} onNotify={addNotification} />;
       default: return <Dashboard tasks={tasks} user={user} quote={dailyQuote} loadingQuote={loadingQuote} onTaskUpdate={updateTask} />;
     }
   };
@@ -158,7 +178,12 @@ const App: React.FC = () => {
               user.themeColor === 'rose' ? 'bg-rose-600' :
               user.themeColor === 'amber' ? 'bg-amber-600' :
               user.themeColor === 'violet' ? 'bg-violet-600' :
-              user.themeColor === 'cyan' ? 'bg-cyan-600' : 'bg-indigo-600'
+              user.themeColor === 'cyan' ? 'bg-cyan-600' : 
+              user.themeColor === 'lavender' ? 'bg-[#c4b5fd]' :
+              user.themeColor === 'matcha' ? 'bg-[#a3e635]' :
+              user.themeColor === 'peach' ? 'bg-[#fdba74]' :
+              user.themeColor === 'pastelPink' ? 'bg-[#fbcfe8]' :
+              'bg-indigo-600'
             }`}>P</div>
             <span className="font-bold dark:text-white tracking-tight text-lg">PLANOVA</span>
           </div>
@@ -190,6 +215,8 @@ const App: React.FC = () => {
           </AnimatePresence>
         </div>
       </main>
+
+      <Toast toasts={toasts} onDismiss={removeNotification} />
     </div>
   );
 };

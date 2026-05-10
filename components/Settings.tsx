@@ -2,16 +2,20 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import { motion } from 'framer-motion';
+import { ToastType } from './Toast';
+import UpgradeModal from './UpgradeModal';
 
 interface SettingsProps {
   user: UserProfile;
   onUpdateUser: (user: UserProfile) => void;
+  onNotify?: (message: string, type: ToastType) => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ user, onUpdateUser }) => {
+const Settings: React.FC<SettingsProps> = ({ user, onUpdateUser, onNotify }) => {
   const [testStatus, setTestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
-  const themes: { id: UserProfile['themeColor']; color: string; label: string }[] = [
+  const freeThemes: { id: UserProfile['themeColor']; color: string; label: string }[] = [
     { id: 'indigo', color: 'bg-indigo-600', label: 'Indigo' },
     { id: 'emerald', color: 'bg-emerald-600', label: 'Emerald' },
     { id: 'rose', color: 'bg-rose-600', label: 'Rose' },
@@ -24,6 +28,13 @@ const Settings: React.FC<SettingsProps> = ({ user, onUpdateUser }) => {
     { id: 'sky', color: 'bg-sky-600', label: 'Sky' },
     { id: 'lime', color: 'bg-lime-600', label: 'Lime' },
     { id: 'slate', color: 'bg-slate-700', label: 'Slate' },
+  ];
+
+  const proThemes: { id: UserProfile['themeColor']; color: string; label: string }[] = [
+    { id: 'lavender', color: 'bg-[#c4b5fd]', label: 'Lavender' },
+    { id: 'matcha', color: 'bg-[#a3e635]', label: 'Matcha' },
+    { id: 'peach', color: 'bg-[#fdba74]', label: 'Peach' },
+    { id: 'pastelPink', color: 'bg-[#fbcfe8]', label: 'Pastel Pink' },
   ];
 
   const handleTestNotification = async () => {
@@ -63,9 +74,12 @@ const Settings: React.FC<SettingsProps> = ({ user, onUpdateUser }) => {
       case 'teal': return 'text-teal-600';
       case 'orange': return 'text-orange-600';
       case 'fuchsia': return 'text-fuchsia-600';
-      case 'sky': return 'text-sky-600';
       case 'slate': return 'text-slate-700';
       case 'lime': return 'text-lime-600';
+      case 'lavender': return 'text-[#c4b5fd]';
+      case 'matcha': return 'text-[#a3e635]';
+      case 'peach': return 'text-[#fdba74]';
+      case 'pastelPink': return 'text-[#fbcfe8]';
       default: return 'text-indigo-600';
     }
   };
@@ -80,9 +94,12 @@ const Settings: React.FC<SettingsProps> = ({ user, onUpdateUser }) => {
       case 'teal': return 'bg-teal-600 hover:bg-teal-700';
       case 'orange': return 'bg-orange-600 hover:bg-orange-700';
       case 'fuchsia': return 'bg-fuchsia-600 hover:bg-fuchsia-700';
-      case 'sky': return 'bg-sky-600 hover:bg-sky-700';
       case 'slate': return 'bg-slate-700 hover:bg-slate-800';
       case 'lime': return 'bg-lime-600 hover:bg-lime-700';
+      case 'lavender': return 'bg-[#c4b5fd] hover:opacity-80';
+      case 'matcha': return 'bg-[#a3e635] hover:opacity-80';
+      case 'peach': return 'bg-[#fdba74] hover:opacity-80';
+      case 'pastelPink': return 'bg-[#fbcfe8] hover:opacity-80';
       default: return 'bg-indigo-600 hover:bg-indigo-700';
     }
   };
@@ -131,7 +148,7 @@ const Settings: React.FC<SettingsProps> = ({ user, onUpdateUser }) => {
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 font-medium">Choose your primary brand color. These palettes are optimized for both light and dark environments.</p>
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-4">
-              {themes.map((t) => (
+              {freeThemes.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => onUpdateUser({ ...user, themeColor: t.id })}
@@ -148,6 +165,64 @@ const Settings: React.FC<SettingsProps> = ({ user, onUpdateUser }) => {
                       <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
                     </div>
                   )}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-8">
+              <h4 className="text-sm font-black dark:text-white flex items-center gap-2 mb-4">
+                <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
+                Pro Aesthetics
+              </h4>
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-4">
+                {proThemes.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      if (!user.isPro) {
+                        onNotify?.("Upgrade to Pro to use aesthetic themes!", "info");
+                        return;
+                      }
+                      onUpdateUser({ ...user, themeColor: t.id });
+                    }}
+                    className={`group relative flex flex-col items-center gap-2 p-2 rounded-2xl transition-all ${
+                      user.themeColor === t.id ? 'bg-slate-50 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                    } ${!user.isPro ? 'opacity-50 grayscale' : ''}`}
+                  >
+                    <div className={`w-10 h-10 rounded-xl ${t.color} shadow-lg transition-transform ${user.isPro ? 'group-hover:scale-110' : ''} ${
+                      user.themeColor === t.id ? 'ring-4 ring-white dark:ring-slate-900 shadow-indigo-200' : ''
+                    }`} />
+                    <span className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-600 truncate w-full text-center">{t.label}</span>
+                    {user.themeColor === t.id && user.isPro && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center">
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>
+                      </div>
+                    )}
+                    {!user.isPro && (
+                      <div className="absolute inset-0 m-auto w-5 h-5 bg-slate-900/80 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <hr className="border-slate-100 dark:border-slate-800 my-8" />
+            
+            <h3 className="text-xl font-black mb-6 dark:text-white">Display Mode</h3>
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl w-full">
+              {['light', 'dark', 'system'].map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => onUpdateUser({ ...user, modePreference: mode as any })}
+                  className={`flex-1 py-3 text-sm font-black rounded-xl capitalize transition-all ${
+                    (user.modePreference || 'system') === mode
+                      ? 'bg-white dark:bg-slate-700 shadow-md text-slate-900 dark:text-white'
+                      : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {mode}
                 </button>
               ))}
             </div>
@@ -208,12 +283,22 @@ const Settings: React.FC<SettingsProps> = ({ user, onUpdateUser }) => {
               Unlock the full potential of your AI companion and advanced analytics.
             </p>
             {!user.isPro ? (
-              <button 
-                onClick={() => onUpdateUser({ ...user, isPro: true })}
-                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-black transition-all shadow-xl active:scale-95"
-              >
-                Upgrade to PLANOVA Pro
-              </button>
+              <>
+                <button 
+                  onClick={() => setIsUpgradeModalOpen(true)}
+                  className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-black transition-all shadow-xl active:scale-95"
+                >
+                  Upgrade to PLANOVA Pro
+                </button>
+                <UpgradeModal 
+                  isOpen={isUpgradeModalOpen} 
+                  onClose={() => setIsUpgradeModalOpen(false)} 
+                  onUpgrade={() => {
+                    onUpdateUser({ ...user, isPro: true });
+                    onNotify?.("Successfully upgraded to PLANOVA Pro! 🎉", "success");
+                  }} 
+                />
+              </>
             ) : (
               <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400 font-black text-sm">
                 <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
